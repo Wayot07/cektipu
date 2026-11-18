@@ -77,15 +77,27 @@ export default function App() {
   const [errorKind, setErrorKind] = useState<AnalyzeErrorKind | null>(null)
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>('idle')
   const [deviceProgress, setDeviceProgress] = useState(0)
-  const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory())
   const [copied, setCopied] = useState(false)
   const [promptApiDetected] = useState(detectPromptApi)
+  const [online, setOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  )
 
   const t = STRINGS[language]
   const configured = isFirebaseConfigured
 
+  // Track connectivity: when offline, the cloud fallback is unavailable
+  // and only the on-device model can run.
   useEffect(() => {
-    setHistory(loadHistory())
+    const goOnline = () => setOnline(true)
+    const goOffline = () => setOnline(false)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
   }, [])
 
   async function handleAnalyze() {
@@ -309,6 +321,14 @@ export default function App() {
           >
             {t.pasteLabel}
           </label>
+          {!online && (
+            <p
+              className="mb-2 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+              role="status"
+            >
+              📶 {t.offlineNotice}
+            </p>
+          )}
           <textarea
             id="message-input"
             value={message}
@@ -400,6 +420,11 @@ export default function App() {
                 {t.scoreLabel}: <strong>{result.verdict.score}/100</strong>
               </span>
             </div>
+            {result.fellBackToDevice && (
+              <p className="mt-2 rounded-xl border border-sky-300 bg-sky-50 p-2.5 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">
+                ☁️➡️📱 {t.fallbackNote}
+              </p>
+            )}
             <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
               <div
                 className={`h-full ${scoreColor(result.verdict.score)}`}

@@ -13,8 +13,10 @@
  * Rules enforced here:
  * - `initializeDeviceModel()` is only called from a user click (the
  *   "Prepare on-device model" button) — the Prompt API requires it.
- * - A 429 (free-tier exhausted) is NEVER hard-retried: the error is
- *   surfaced so the UI can suggest privacy mode / trying later.
+ * - A 429 (free-tier exhausted) is NEVER hard-retried: on a 429 from the
+ *   cloud path, the analysis falls back ONCE to the on-device model
+ *   (ONLY_ON_DEVICE) and reports `fellBackToDevice: true`. If the
+ *   on-device fallback also fails, the error is surfaced — no retries.
  * - Short prompts keep cloud calls cheap and under free-tier limits.
  */
 import { getGenerativeModel, InferenceMode } from 'firebase/ai'
@@ -46,6 +48,9 @@ export interface AnalysisResult {
   verdict: Verdict
   inferenceSource: InferenceSourceLabel
   privacyMode: boolean
+  /** True when the cloud path hit its free-tier quota (429) and the
+   *  analysis was re-run on-device instead. The UI shows a note for it. */
+  fellBackToDevice?: boolean
 }
 
 /**
@@ -116,7 +121,13 @@ export async function prepareOnDeviceModel(
   }
 }
 
-/** Analyze one message. Returns the verdict plus which path actually ran. */
+/** Analyze one message. Returns the verdict plus which path actually ran.
+ *
+ * On a 429 (cloud free-tier quota exhausted) with privacy mode OFF, the
+ * analysis is re-run ONCE on-device (ONLY_ON_DEVICE) — never a hard retry
+ * of the cloud call. The result is marked `fellBackToDevice: true`.
+ * If the on-device fallback also fails, that error is surfaced.
+ */
 export async function analyzeMessage(
   message: string,
   opts: { privacyMode: boolean; language: 'id' | 'en' },
@@ -124,11 +135,51 @@ export async function analyzeMessage(
   const model = getModel(opts.privacyMode)
   const prompt = buildAnalysisPrompt(message, opts.language)
 
+  try {
+    return await runAnalysis(model, prompt, opts.privacyMode)
+  } catch (err) {
+    // Cloud quota exhausted and we were allowed to leave the device:
+    // fall back to the on-device model exactly once.
+    if (
+      err instanceof AnalyzeError &&
+      err.kind === 'rate-limited' &&
+      !opts.privacyMode
+    ) {
+      try {
+        // Prepare the device model first (user-gesture rule: this runs
+        // inside the Analyze button's click handler, so it is allowed).
+        await prepareOnDeviceModel(true)
+        const deviceModel = getModel(true)
+        const result = await runAnalysis(deviceModel, prompt, true)
+        return { ...result, fellBackToDevice: true }
+      } catch (fallbackErr) {
+        if (fallbackErr instanceof AnalyzeError) {
+          if (fallbackErr.kind === 'on-device-unavailable') {
+            throw new AnalyzeError(
+              'on-device-unavailable',
+              'Cloud free-tier quota is exhausted (429) and the on-device model could not be prepared in this browser. Use Chrome Desktop 139+ with the Prompt API flag enabled, or try again later.',
+            )
+          }
+          throw fallbackErr
+        }
+        throw mapGenerateError(fallbackErr, true)
+      }
+    }
+    throw err
+  }
+}
+
+/** Single generateContent + parse pass against one model. */
+async function runAnalysis(
+  model: GenerativeModel,
+  prompt: string,
+  privacyMode: boolean,
+): Promise<AnalysisResult> {
   let result
   try {
     result = await model.generateContent(prompt)
   } catch (err) {
-    throw mapGenerateError(err, opts.privacyMode)
+    throw mapGenerateError(err, privacyMode)
   }
 
   const response = result.response
@@ -150,7 +201,7 @@ export async function analyzeMessage(
     )
   }
 
-  return { verdict, inferenceSource, privacyMode: opts.privacyMode }
+  return { verdict, inferenceSource, privacyMode }
 }
 
 function errorMessage(err: unknown): string {
@@ -167,7 +218,7 @@ function mapGenerateError(err: unknown, privacyMode: boolean): AnalyzeError {
   if (/429|RESOURCE_EXHAUSTED|quota|rate limit/i.test(msg)) {
     return new AnalyzeError(
       'rate-limited',
-      'Cloud free-tier quota is exhausted for now (429). Try privacy mode (on-device only) or try again later. The app never auto-retries a 429.',
+      'Cloud free-tier quota is exhausted for now (429). The on-device fallback was already tried or is unavailable — try privacy mode (on-device only) or try again later. The app never auto-retries a 429 against the cloud.',
     )
   }
   if (

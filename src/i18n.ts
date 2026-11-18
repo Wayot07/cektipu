@@ -46,6 +46,8 @@ type Strings = {
   errParse: string
   errUnknown: string
   errNotConfigured: string
+  fallbackNote: string
+  offlineNotice: string
   verdictScam: string
   verdictSuspicious: string
   verdictSafe: string
@@ -98,7 +100,7 @@ const ID: Strings = {
     'Browser ini tampaknya tidak mendukung model on-device (butuh Chrome Desktop 139+ dengan flag Prompt API). Analisis tetap bisa berjalan lewat cloud.',
   deviceIdle: 'Model on-device belum disiapkan.',
   errRateLimited:
-    'Kuota gratis cloud habis untuk sementara (429). Aktifkan mode privasi (on-device saja) atau coba lagi nanti. Aplikasi ini tidak pernah mengulang otomatis.',
+    'Kuota gratis cloud habis untuk sementara (429) dan analisis on-device juga tidak berhasil. Coba lagi nanti. Aplikasi ini tidak pernah mengulang otomatis ke cloud.',
   errOnDevice:
     'Model on-device tidak tersedia di browser ini. Gunakan Chrome Desktop 139+ dengan flag Prompt API diaktifkan, atau matikan mode privasi untuk memakai cloud.',
   errNetwork: 'Gagal menghubungi model (masalah jaringan). Periksa koneksimu dan coba lagi.',
@@ -106,6 +108,10 @@ const ID: Strings = {
   errUnknown: 'Terjadi kesalahan yang tidak dikenal. Coba lagi.',
   errNotConfigured:
     'Proyek Firebase belum dikonfigurasi. Ikuti langkah di README.md untuk membuat proyek Firebase gratis.',
+  fallbackNote:
+    'Kuota cloud habis (429) — pesan ini dianalisis on-device sebagai gantinya, tanpa mengirim data ke cloud.',
+  offlineNotice:
+    'Kamu sedang offline — analisis cloud tidak tersedia. Hanya analisis on-device yang bisa dipakai sekarang.',
   verdictScam: 'PENIPUAN',
   verdictSuspicious: 'MENCURIGAKAN',
   verdictSafe: 'KEMUNGKINAN AMAN',
@@ -159,7 +165,7 @@ const EN: Strings = {
     'This browser does not seem to support the on-device model (needs Chrome Desktop 139+ with the Prompt API flag). Analysis can still run via the cloud.',
   deviceIdle: 'On-device model not prepared yet.',
   errRateLimited:
-    'Cloud free-tier quota is exhausted for now (429). Turn on privacy mode (on-device only) or try again later. This app never auto-retries.',
+    'Cloud free-tier quota is exhausted for now (429), and the on-device analysis did not succeed either. Try again later. This app never auto-retries against the cloud.',
   errOnDevice:
     'The on-device model is not available in this browser. Use Chrome Desktop 139+ with the Prompt API flag enabled, or turn privacy mode off to use the cloud.',
   errNetwork: 'Could not reach the model (network problem). Check your connection and try again.',
@@ -167,6 +173,10 @@ const EN: Strings = {
   errUnknown: 'An unknown error occurred. Try again.',
   errNotConfigured:
     'Firebase project is not configured yet. Follow the steps in README.md to create a free Firebase project.',
+  fallbackNote:
+    'Cloud quota was exhausted (429) — this message was analyzed on-device instead, with no data sent to the cloud.',
+  offlineNotice:
+    "You're offline — cloud analysis is unavailable. Only on-device analysis can be used right now.",
   verdictScam: 'SCAM',
   verdictSuspicious: 'SUSPICIOUS',
   verdictSafe: 'LIKELY SAFE',
