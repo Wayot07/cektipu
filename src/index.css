@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* CekTipu — small global tweaks on top of Tailwind. */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+textarea {
+  field-sizing: content;
+}
