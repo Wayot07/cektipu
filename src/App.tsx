@@ -8,7 +8,7 @@
  *  Every result shows which path ran: ON-DEVICE (Gemini Nano) or CLOUD
  *  (Gemini Flash-Lite). Privacy mode forces ONLY_ON_DEVICE.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SCAM_EXAMPLES } from './data/scam-examples'
 import { STRINGS } from './i18n'
 import type { UILanguage } from './i18n'
@@ -80,6 +80,7 @@ export default function App() {
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory())
   const [copied, setCopied] = useState(false)
   const [promptApiDetected] = useState(detectPromptApi)
+  const resultRef = useRef<HTMLElement | null>(null)
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true,
   )
@@ -99,6 +100,17 @@ export default function App() {
       window.removeEventListener('offline', goOffline)
     }
   }, [])
+
+  // Bring the verdict into view when it appears (nearest = no jump when
+  // it is already visible on a tall screen).
+  useEffect(() => {
+    if (result) {
+      resultRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    }
+  }, [result])
 
   async function handleAnalyze() {
     const text = message.trim()
@@ -199,20 +211,20 @@ export default function App() {
     : VERDICT_STYLE['likely-safe']
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <main className="mx-auto w-full max-w-3xl px-4 pb-16 pt-8">
+    <div className="min-h-dvh bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+      <main className="mx-auto w-full max-w-3xl px-3 pb-10 pt-4 sm:px-4 sm:pb-16 sm:pt-8">
         {/* Header */}
-        <header className="mb-6 text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight">
+        <header className="mb-4 text-center sm:mb-6">
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
             🛡️ CekTipu
           </h1>
-          <p className="mt-2 text-base text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1.5 text-sm text-zinc-600 dark:text-zinc-400 sm:mt-2 sm:text-base">
             {t.tagline}
           </p>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-zinc-500 dark:text-zinc-500">
+          <p className="mx-auto mt-1.5 line-clamp-2 max-w-xl text-xs text-zinc-500 dark:text-zinc-500 sm:mt-2 sm:line-clamp-none sm:text-sm">
             {t.subline}
           </p>
-          <div className="mt-4 flex items-center justify-center gap-2">
+          <div className="mt-3 flex items-center justify-center gap-2 sm:mt-4">
             <div
               className="inline-flex rounded-full border border-zinc-300 p-0.5 dark:border-zinc-700"
               role="group"
@@ -223,7 +235,7 @@ export default function App() {
                   key={lang}
                   type="button"
                   onClick={() => setLanguage(lang)}
-                  className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold sm:px-3 sm:text-sm ${
                     language === lang
                       ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
                       : 'text-zinc-600 dark:text-zinc-300'
@@ -238,7 +250,7 @@ export default function App() {
               role="switch"
               aria-checked={privacyMode}
               onClick={() => setPrivacyMode((v) => !v)}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold ${
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold sm:gap-2 sm:px-3 sm:py-1.5 sm:text-sm ${
                 privacyMode
                   ? 'border-emerald-600 bg-emerald-600 text-white'
                   : 'border-zinc-300 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'
@@ -259,7 +271,7 @@ export default function App() {
         {/* Firebase not configured */}
         {!configured && (
           <section
-            className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40"
+            className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-3 sm:mb-6 sm:p-4 dark:border-amber-900 dark:bg-amber-950/40"
             role="alert"
           >
             <h2 className="text-base font-bold text-amber-900 dark:text-amber-200">
@@ -274,10 +286,11 @@ export default function App() {
           </section>
         )}
 
-        {/* On-device model */}
-        <section className="mb-6 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="text-base font-bold">📱 {t.deviceTitle}</h2>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        {/* On-device model — compact status strip so the analyzer stays
+            above the fold on small phones. */}
+        <section className="mb-4 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:mb-6 sm:p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="text-sm font-bold sm:text-base">📱 {t.deviceTitle}</h2>
+          <p className="mt-1 line-clamp-2 text-xs text-zinc-600 sm:line-clamp-none sm:text-sm dark:text-zinc-400">
             {t.deviceBody}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -285,13 +298,13 @@ export default function App() {
               type="button"
               onClick={handlePrepareModel}
               disabled={!configured || deviceStatus === 'downloading'}
-              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-zinc-900"
+              className="rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 sm:px-4 sm:py-2 sm:text-sm dark:bg-white dark:text-zinc-900"
             >
               {deviceStatus === 'downloading'
                 ? t.preparingModel
                 : t.prepareButton}
             </button>
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">
+            <span className="text-xs text-zinc-600 sm:text-sm dark:text-zinc-400">
               {deviceStatus === 'ready' && `✅ ${t.deviceReady}`}
               {deviceStatus === 'downloading' &&
                 `⏳ ${t.deviceDownloading(deviceProgress)}`}
@@ -314,7 +327,7 @@ export default function App() {
         </section>
 
         {/* Analyzer */}
-        <section className="mb-6 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <section className="mb-4 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:mb-6 sm:p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <label
             htmlFor="message-input"
             className="mb-2 block text-sm font-bold"
@@ -335,8 +348,8 @@ export default function App() {
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t.placeholder}
             maxLength={MAX_MESSAGE_LENGTH}
-            rows={6}
-            className="w-full rounded-xl border border-zinc-300 bg-white p-3 text-base outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:focus:border-white"
+            rows={4}
+            className="max-h-44 w-full rounded-xl border border-zinc-300 bg-white p-3 text-base outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:focus:border-white"
           />
           <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
             <span>{t.charCount(message.length, MAX_MESSAGE_LENGTH)}</span>
@@ -362,13 +375,15 @@ export default function App() {
 
           <div className="mt-5">
             <p className="mb-2 text-sm font-bold">{t.examplesTitle}</p>
-            <div className="flex flex-wrap gap-2">
+            {/* One horizontal scroll row on small screens instead of a
+                wrapping block, so the examples don't push the page long. */}
+            <div className="no-scrollbar flex snap-x gap-2 overflow-x-auto pb-1">
               {SCAM_EXAMPLES.map((ex) => (
                 <button
                   key={ex.id}
                   type="button"
                   onClick={() => handleExample(ex.id)}
-                  className="rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                  className="shrink-0 snap-start whitespace-nowrap rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                   title={`${ex.category} · ${ex.language.toUpperCase()}`}
                 >
                   {ex.title} · {ex.language.toUpperCase()}
@@ -381,7 +396,8 @@ export default function App() {
         {/* Result */}
         {result && (
           <section
-            className={`mb-6 rounded-2xl border p-4 shadow-sm ${verdictStyle.card}`}
+            ref={resultRef}
+            className={`mb-4 rounded-2xl border p-3 shadow-sm sm:mb-6 sm:p-4 ${verdictStyle.card}`}
             aria-live="polite"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -478,10 +494,11 @@ export default function App() {
           </section>
         )}
 
-        {/* History */}
-        <section className="mb-6 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        {/* History — list scrolls internally so long histories don't
+            stretch the page. */}
+        <section className="mb-4 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:mb-6 sm:p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold">🕘 {t.historyTitle}</h2>
+            <h2 className="text-sm font-bold sm:text-base">🕘 {t.historyTitle}</h2>
             {history.length > 0 && (
               <button
                 type="button"
@@ -498,7 +515,7 @@ export default function App() {
           {history.length === 0 ? (
             <p className="mt-2 text-sm text-zinc-500">{t.emptyHistory}</p>
           ) : (
-            <ul className="mt-2 divide-y divide-zinc-200 dark:divide-zinc-800">
+            <ul className="mt-2 max-h-64 divide-y divide-zinc-200 overflow-y-auto dark:divide-zinc-800">
               {history.map((entry) => (
                 <li key={entry.id}>
                   <button

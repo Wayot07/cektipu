@@ -12,3 +12,12 @@ body {
 textarea {
   field-sizing: content;
 }
+
+/* Hide scrollbars on horizontal chip rows (still scrollable by touch). */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
