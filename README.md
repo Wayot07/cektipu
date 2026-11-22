@@ -25,6 +25,14 @@ Scam messages often contain personal data — so CekTipu analyzes them
    doubling, fake delivery, impersonation, …) as one-tap chips — great for
    trying the app without typing.
 6. **History** is stored in `localStorage` only — on your device, nowhere else.
+7. **Share the verdict** — the result card has **Share result** (Web Share
+   API where the browser offers it) and **Copy result** buttons; the shared
+   text carries the verdict, risk score, summary, red-flag count, and
+   whether it ran on-device or in the cloud.
+8. **Clear error states** — when Gemini Nano is unavailable in the browser,
+   while it is downloading, or when you are offline, the app says so
+   plainly and tells you what still works (cloud while Nano is missing,
+   on-device while offline once the model is ready).
 
 ## How hybrid inference is used (Firebase AI Logic)
 
@@ -67,6 +75,17 @@ const source = result.response.inferenceSource // 'on_device' | 'in_cloud'
 - **App Check** is initialized in [`src/lib/firebase.ts`](src/lib/firebase.ts)
   (debug provider for local dev, reCAPTCHA Enterprise for production).
 
+## Error states
+
+The app never leaves you guessing when a path cannot run:
+
+| Situation | What you see | What still works |
+| --- | --- | --- |
+| **Nano unavailable** (non-Chrome, old Chrome, Prompt API flag off) | Amber notice in the on-device card: why it is unavailable, and that the cloud still works | Full analysis via the cloud; the badge reads ☁️ `CLOUD` |
+| **Nano downloading** | Live progress bar + % in the on-device card | Analysis already works via the cloud while the download finishes |
+| **Offline** | Notice above the input: cloud unavailable, on-device only | On-device analysis once the model is ready (green notice); if the model is not ready yet, the notice says analysis may fail until you are back online |
+| **Cloud quota exhausted (429)** | Error message after analysis; the app falls back once to on-device and says so | On-device analysis; the app never hard-retries the cloud |
+
 ## Run it
 
 ```bash
@@ -75,8 +94,9 @@ npm run dev     # http://localhost:5173
 npm run build   # type-check + production build
 ```
 
-Requirements: Node 18+, Chrome Desktop 139+ for the on-device path
-(any browser works — it just falls back to cloud).
+Requirements: Node 22+ (Vite 8 needs Node 20.19+ / 22.12+), Chrome Desktop
+139+ for the on-device path (any browser works — it just falls back to
+cloud).
 
 ## Setting up the Firebase project (5 minutes, free, no credit card)
 
@@ -124,6 +144,27 @@ analysis still works via the cloud fallback and the badge reads ☁️ `CLOUD`.
 5. Switch the language toggle **ID / EN** — the whole UI translates.
 6. To see the cloud path on purpose: use a non-Chrome browser, or a
    Chrome profile where the Prompt API flag is off — the badge reads CLOUD.
+7. **Share the verdict:** after a result appears, tap **Share result** (on
+   a phone it opens the system share sheet) or **Copy result** — the
+   copied text carries the verdict, score, summary, red-flag count, and
+   the ON-DEVICE / CLOUD source.
+8. **Offline:** turn on airplane mode (or DevTools → Network → Offline),
+   then reload. The notice above the input explains that only on-device
+   works. If the model is ready, analyze a message — it still works,
+   fully private. If the model is not ready, the notice says analysis may
+   fail until you are back online.
+9. **Nano unavailable:** open the app in a non-Chrome browser (or a
+   Chrome profile with the Prompt API flag off). The on-device card shows
+   an amber notice explaining why Nano is unavailable — and analysis still
+   works via the cloud.
+10. **Nano downloading:** in a fresh Chrome profile, enable the flag, click
+    **Prepare on-device model**, and watch the live progress bar. While it
+    downloads, analysis already works via the cloud.
+11. **Share-text unit test (no browser needed):**
+    ```bash
+    npx tsc src/lib/share.ts --ignoreConfig --outDir /tmp/share-test-out --module commonjs --target es2022 --skipLibCheck
+    node scripts/test-share-text.cjs   # expect: 22 passed, 0 failed
+    ```
 
 ## Project structure
 
@@ -133,6 +174,7 @@ src/
     firebase.ts   # initializeApp + App Check + getAI (placeholder-safe)
     hybrid.ts     # getGenerativeModel, PREFER/ONLY_ON_DEVICE, inferenceSource
     verdict.ts    # JSON verdict schema + prompt + strict parser
+    share.ts      # verdict share text (pure function, unit-tested with node)
     history.ts    # localStorage history (device-only)
   data/
     scam-examples.ts  # 12 built-in scam archetypes (ID + EN)
@@ -145,6 +187,14 @@ src/
 Built for **#BuildHybridAI 2026** — Gen AI apps with Firebase AI Logic
 (Gemini Nano on-device + cloud fallback). Platform: **Web (Chrome)**.
 Submission deadline: 1 Dec 2026 05:00 WIB.
+
+## Ringkasan (Bahasa Indonesia)
+
+CekTipu mengecek pesan mencurigakan (WhatsApp / Telegram / SMS) dan memberi
+verdict penipuan atau bukan — diutamakan on-device (Gemini Nano, privat),
+dengan cloud sebagai cadangan. Semua instruksi di atas berlaku sama;
+bagian "Testing instructions" menjelaskan cara menguji setiap jalurnya
+(on-device, cloud, offline, Nano tidak tersedia, dan berbagi hasil).
 
 ## License
 

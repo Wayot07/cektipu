@@ -57,6 +57,19 @@ type Strings = {
   badgeOnDeviceHint: string
   badgeInCloudHint: string
   privacyNote: string
+  deviceUnavailableTitle: string
+  deviceUnavailableBody: string
+  deviceDownloadingHint: string
+  offlineDeviceReady: string
+  offlineDeviceNotReady: string
+  shareResult: string
+  copyResult: string
+  resultCopied: string
+  resultShared: string
+  shareTitle: string
+  shareLineFlags: (n: number) => string
+  shareLineSourceOnDevice: string
+  shareLineSourceInCloud: string
 }
 
 const ID: Strings = {
@@ -122,6 +135,23 @@ const ID: Strings = {
   badgeInCloudHint: 'Dianalisis model cloud (Gemini Flash-Lite) — on-device tidak tersedia saat itu.',
   privacyNote:
     'Dibuat untuk #BuildHybridAI 2026 — Firebase AI Logic (hybrid inference: Gemini Nano on-device + Gemini cloud).',
+  deviceUnavailableTitle: 'Model on-device tidak tersedia di browser ini',
+  deviceUnavailableBody:
+    'Analisis tetap berjalan lewat cloud — hasilnya sama lengkapnya, hanya datanya dikirim ke server. Untuk analisis privat on-device, pakai Chrome Desktop 139+, aktifkan flag Prompt API di chrome://flags/#prompt-api-for-gemini-nano-multimodal-input, lalu klik "Siapkan model on-device".',
+  deviceDownloadingHint:
+    'Model diunduh sekali saja — sementara itu analisis sudah bisa jalan lewat cloud.',
+  offlineDeviceReady:
+    'Kamu sedang offline, tapi model on-device sudah siap — analisis tetap bisa jalan, sepenuhnya privat.',
+  offlineDeviceNotReady:
+    'Kamu sedang offline dan model on-device belum siap — analisis mungkin gagal sampai koneksi kembali atau model disiapkan.',
+  shareResult: 'Bagikan hasil',
+  copyResult: 'Salin hasil',
+  resultCopied: 'Hasil disalin!',
+  resultShared: 'Hasil dibagikan!',
+  shareTitle: 'CekTipu — Hasil Analisis',
+  shareLineFlags: (n) => `Tanda bahaya: ${n} ditemukan`,
+  shareLineSourceOnDevice: 'Dianalisis on-device (Gemini Nano) — privat',
+  shareLineSourceInCloud: 'Dianalisis via cloud (Gemini Flash-Lite)',
 }
 
 const EN: Strings = {
@@ -187,6 +217,23 @@ const EN: Strings = {
   badgeInCloudHint: 'Analyzed by the cloud model (Gemini Flash-Lite) — on-device was unavailable.',
   privacyNote:
     'Built for #BuildHybridAI 2026 — Firebase AI Logic (hybrid inference: on-device Gemini Nano + cloud Gemini).',
+  deviceUnavailableTitle: 'On-device model is not available in this browser',
+  deviceUnavailableBody:
+    'Analysis still runs via the cloud — the result is just as complete, only the data is sent to a server. For private on-device analysis, use Chrome Desktop 139+, enable the Prompt API flag at chrome://flags/#prompt-api-for-gemini-nano-multimodal-input, then click "Prepare on-device model".',
+  deviceDownloadingHint:
+    'The model downloads once — meanwhile, analysis already works via the cloud.',
+  offlineDeviceReady:
+    "You're offline, but the on-device model is ready — analysis still works, fully private.",
+  offlineDeviceNotReady:
+    "You're offline and the on-device model isn't ready yet — analysis may fail until you're back online or the model is prepared.",
+  shareResult: 'Share result',
+  copyResult: 'Copy result',
+  resultCopied: 'Result copied!',
+  resultShared: 'Result shared!',
+  shareTitle: 'CekTipu — Analysis Result',
+  shareLineFlags: (n) => `Red flags: ${n} found`,
+  shareLineSourceOnDevice: 'Analyzed on-device (Gemini Nano) — private',
+  shareLineSourceInCloud: 'Analyzed via cloud (Gemini Flash-Lite)',
 }
 
 export const STRINGS: Record<UILanguage, Strings> = { id: ID, en: EN }

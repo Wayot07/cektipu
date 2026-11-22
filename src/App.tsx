@@ -21,6 +21,7 @@ import {
 import type { AnalysisResult, AnalyzeErrorKind } from './lib/hybrid'
 import { addHistoryEntry, clearHistory, loadHistory } from './lib/history'
 import type { HistoryEntry } from './lib/history'
+import { buildResultShareText } from './lib/share'
 import type { VerdictLabel } from './lib/verdict'
 
 const MAX_MESSAGE_LENGTH = 4000
@@ -79,6 +80,9 @@ export default function App() {
   const [deviceProgress, setDeviceProgress] = useState(0)
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory())
   const [copied, setCopied] = useState(false)
+  const [shareFeedback, setShareFeedback] = useState<'shared' | 'copied' | null>(
+    null,
+  )
   const [promptApiDetected] = useState(detectPromptApi)
   const resultRef = useRef<HTMLElement | null>(null)
   const [online, setOnline] = useState(
@@ -182,6 +186,57 @@ export default function App() {
     }
   }
 
+  // Clipboard write with a textarea fallback for browsers where the
+  // async Clipboard API is unavailable or denied.
+  async function copyTextWithFallback(text: string): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        const ok = document.execCommand('copy')
+        document.body.removeChild(ta)
+        return ok
+      } catch {
+        return false
+      }
+    }
+  }
+
+  function flashShareFeedback(kind: 'shared' | 'copied') {
+    setShareFeedback(kind)
+    window.setTimeout(() => setShareFeedback(null), 2000)
+  }
+
+  async function handleCopyResult() {
+    if (!result) return
+    const ok = await copyTextWithFallback(buildResultShareText(result, language))
+    if (ok) flashShareFeedback('copied')
+  }
+
+  async function handleShareResult() {
+    if (!result) return
+    const text = buildResultShareText(result, language)
+    // Web Share API where the browser offers it (mostly mobile); otherwise
+    // fall back to copying the same text to the clipboard.
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
+      try {
+        await navigator.share({ title: t.shareTitle, text })
+        flashShareFeedback('shared')
+      } catch {
+        // User cancelled the share sheet — nothing to report.
+      }
+    } else {
+      await handleCopyResult()
+    }
+  }
+
   function errorText(kind: AnalyzeErrorKind): string {
     switch (kind) {
       case 'not-configured':
@@ -209,6 +264,12 @@ export default function App() {
   const verdictStyle = result
     ? VERDICT_STYLE[result.verdict.verdict]
     : VERDICT_STYLE['likely-safe']
+
+  // On-device model cannot run in this browser (no Prompt API, or the
+  // prepare step failed) — the cloud path still works, so say so clearly.
+  const deviceUnavailable =
+    deviceStatus === 'unsupported' ||
+    (deviceStatus === 'idle' && !promptApiDetected)
 
   return (
     <div className="min-h-dvh bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
@@ -317,11 +378,29 @@ export default function App() {
             </span>
           </div>
           {deviceStatus === 'downloading' && (
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
-              <div
-                className="h-full bg-emerald-500 transition-all"
-                style={{ width: `${deviceProgress}%` }}
-              />
+            <>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                <div
+                  className="h-full bg-emerald-500 transition-all"
+                  style={{ width: `${deviceProgress}%` }}
+                />
+              </div>
+              {online && (
+                <p className="mt-2 text-xs text-zinc-600 sm:text-sm dark:text-zinc-400">
+                  ℹ️ {t.deviceDownloadingHint}
+                </p>
+              )}
+            </>
+          )}
+          {deviceUnavailable && (
+            <div
+              className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+              role="status"
+            >
+              <p className="font-bold">
+                ⚠️ {t.deviceUnavailableTitle}
+              </p>
+              <p className="mt-1">{t.deviceUnavailableBody}</p>
             </div>
           )}
         </section>
@@ -336,10 +415,17 @@ export default function App() {
           </label>
           {!online && (
             <p
-              className="mb-2 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+              className={`mb-2 rounded-xl border p-2.5 text-sm ${
+                deviceStatus === 'ready'
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'
+                  : 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300'
+              }`}
               role="status"
             >
-              📶 {t.offlineNotice}
+              📶{' '}
+              {deviceStatus === 'ready'
+                ? t.offlineDeviceReady
+                : `${t.offlineNotice} ${t.offlineDeviceNotReady}`}
             </p>
           )}
           <textarea
@@ -491,6 +577,31 @@ export default function App() {
                 </button>
               </>
             )}
+
+            {/* Share / copy the verdict card — Web Share API where
+                available, clipboard fallback otherwise. */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleShareResult}
+                className="rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white sm:text-sm dark:bg-white dark:text-zinc-900"
+              >
+                {shareFeedback === 'shared'
+                  ? `✅ ${t.resultShared}`
+                  : shareFeedback === 'copied'
+                    ? `✅ ${t.resultCopied}`
+                    : `📤 ${t.shareResult}`}
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyResult}
+                className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                {shareFeedback === 'copied'
+                  ? `✅ ${t.resultCopied}`
+                  : `📋 ${t.copyResult}`}
+              </button>
+            </div>
           </section>
         )}
 
